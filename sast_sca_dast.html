@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAST, SCA & DAST — Deep Dive</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 24px 16px; }
+
+h1 { text-align: center; font-size: 22px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+.subtitle { text-align: center; font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+/* Tab nav */
+.tab-nav { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+.tab-btn {
+  padding: 9px 22px; border-radius: 8px; border: 1.5px solid #2a2f3e;
+  background: #1e2330; color: #94a3b8; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.tab-btn:hover { background: #252b3b; color: #e2e8f0; }
+.tab-btn.active { color: #fff; border-color: transparent; }
+.tab-btn.sast.active { background: #4f46e5; }
+.tab-btn.sca.active  { background: #0891b2; }
+.tab-btn.dast.active { background: #b45309; }
+.tab-btn.pipe.active { background: #065f46; }
+
+/* Panels */
+.panel { display: none; max-width: 860px; margin: 0 auto; }
+.panel.active { display: block; }
+
+/* Section title */
+.sec-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.sec-sub { font-size: 13px; color: #94a3b8; margin-bottom: 18px; line-height: 1.5; }
+
+/* Definition hero */
+.def-hero {
+  border-radius: 10px; padding: 18px 20px; margin-bottom: 20px;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-bg);
+}
+.def-hero .def-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
+.def-hero p { font-size: 14px; color: #cbd5e1; line-height: 1.65; }
+.def-hero strong { color: #f1f5f9; }
+
+/* Grid */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+@media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+
+.card {
+  background: #1e2330; border: 1px solid #2a2f3e;
+  border-radius: 10px; padding: 16px;
+}
+.card h4 { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px; }
+.card ul { list-style: none; }
+.card ul li { font-size: 13px; color: #cbd5e1; padding: 4px 0 4px 16px; position: relative; line-height: 1.5; border-bottom: 1px solid #1a1f2e; }
+.card ul li:last-child { border-bottom: none; }
+.card ul li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); font-size: 10px; top: 6px; }
+
+/* Code block */
+.code-block {
+  background: #080d14; border: 1px solid #1e2a3a; border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 16px; overflow-x: auto;
+}
+.code-block .code-label { font-size: 11px; color: #475569; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+.code-block pre { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.7; color: #94a3b8; white-space: pre; }
+.code-block .kw { color: #818cf8; }
+.code-block .str { color: #86efac; }
+.code-block .cm { color: #475569; font-style: italic; }
+.code-block .fn { color: #7dd3fc; }
+.code-block .warn { color: #fbbf24; }
+.code-block .err { color: #f87171; }
+.code-block .ok { color: #4ade80; }
+
+/* Finding card */
+.finding {
+  border-radius: 8px; padding: 14px 16px; margin-bottom: 10px;
+  border-left: 4px solid var(--sev-color);
+  background: #151a27;
+}
+.finding .f-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.finding .sev-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+  background: var(--sev-bg); color: var(--sev-color); border: 1px solid var(--sev-color);
+}
+.finding .f-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+.finding .f-body { font-size: 13px; color: #94a3b8; line-height: 1.55; }
+.finding code { font-family: 'Courier New', monospace; font-size: 12px; color: #86efac; background: #0a1a10; padding: 1px 5px; border-radius: 3px; }
+
+/* Stage steps */
+.steps { display: flex; flex-direction: column; gap: 0; margin-bottom: 16px; }
+.step {
+  display: flex; gap: 14px; padding: 14px 0;
+  border-bottom: 1px solid #1e2330;
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent); color: #0f1117;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; margin-top: 2px;
+}
+.step-body strong { font-size: 14px; color: #f1f5f9; display: block; margin-bottom: 4px; }
+.step-body p { font-size: 13px; color: #94a3b8; line-height: 1.55; }
+.step-body code { font-family: 'Courier New', monospace; font-size: 12px; color: #7dd3fc; background: #0d1a2a; padding: 1px 5px; border-radius: 3px; }
+
+/* Tool pills */
+.tool-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tool-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #1e2330; border: 1px solid #3a4155;
+  border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #cbd5e1;
+}
+.tool-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+/* Pipeline viz */
+.pipeline { display: flex; align-items: stretch; gap: 0; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; }
+.pipe-stage {
+  flex: 1; min-width: 120px; background: #1e2330; border: 1px solid #2a2f3e;
+  border-radius: 0; padding: 14px 10px; text-align: center; position: relative;
+}
+.pipe-stage:first-child { border-radius: 10px 0 0 10px; }
+.pipe-stage:last-child  { border-radius: 0 10px 10px 0; }
+.pipe-stage .ps-icon { font-size: 20px; margin-bottom: 6px; }
+.pipe-stage .ps-name { font-size: 12px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+.pipe-stage .ps-tool { font-size: 11px; color: #64748b; }
+.pipe-stage .ps-badge {
+  margin-top: 8px; font-size: 10px; font-weight: 700; padding: 2px 6px;
+  border-radius: 3px; display: inline-block;
+}
+.pipe-arrow { display: flex; align-items: center; color: #3a4155; font-size: 18px; padding: 0 2px; flex-shrink: 0; }
+
+.sast-color  { --accent: #818cf8; --accent-bg: #1a1a2e; }
+.sca-color   { --accent: #22d3ee; --accent-bg: #0c1f2a; }
+.dast-color  { --accent: #fb923c; --accent-bg: #1f1510; }
+.pipe-color  { --accent: #34d399; --accent-bg: #0a1f18; }
+
+.compare-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+.compare-table th { background: #1e2330; color: #94a3b8; font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 2px solid #2a2f3e; }
+.compare-table td { padding: 10px 12px; border-bottom: 1px solid #1e2330; color: #cbd5e1; vertical-align: top; }
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table .sast-c { color: #818cf8; font-weight: 600; }
+.compare-table .sca-c  { color: #22d3ee; font-weight: 600; }
+.compare-table .dast-c { color: #fb923c; font-weight: 600; }
+
+.tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tag.y { background: #14532d; color: #4ade80; }
+.tag.n { background: #450a0a; color: #f87171; }
+.tag.p { background: #422006; color: #fbbf24; }
+</style>
+</head>
+<body>
+
+<h1>SAST · SCA · DAST</h1>
+<p class="subtitle">How each tool works, stage by stage — with real examples</p>
+
+<div class="tab-nav">
+  <button class="tab-btn sast active" onclick="showTab('sast')">🔍 SAST</button>
+  <button class="tab-btn sca"  onclick="showTab('sca')">📦 SCA</button>
+  <button class="tab-btn dast" onclick="showTab('dast')">🌐 DAST</button>
+  <button class="tab-btn pipe" onclick="showTab('pipe')">⚙️ Pipeline — All Together</button>
+</div>
+
+<!-- ══════════════ SAST ══════════════ -->
+<div class="panel active sast-color" id="panel-sast">
+  <div class="def-hero">
+    <div class="def-label">SAST — Static Application Security Testing</div>
+    <p><strong>Analyzes source code without running the app.</strong> Reads your code like a security-aware compiler — looking for dangerous patterns, vulnerable functions, and missing security controls. Runs at commit or build time. <strong>No app needs to be running.</strong></p>
+  </div>
+
+  <div class="sec-title" style="color:#818cf8">How SAST works — stage by stage</div>
+  <p class="sec-sub">SAST tools parse your code into an Abstract Syntax Tree (AST), then apply security rules to find dangerous patterns.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Code is parsed into an AST (Abstract Syntax Tree)</strong>
+        <p>The tool reads your source code and converts it into a tree structure it can analyze. Every function call, variable assignment, and condition becomes a node in the tree. This is language-specific — Python, Java, JS all have different parsers.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Data flow analysis — taint tracking</strong>
+        <p>The tool traces where user input enters the app (called a <code>source</code>) and where it flows to dangerous functions (called a <code>sink</code>). If input flows from a web request directly into a database query without sanitization — that's a SQL injection finding.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Rules / patterns are matched</strong>
+        <p>Security rules fire when dangerous patterns are found. Example rule: "if user input reaches <code>os.system()</code> without sanitization, flag command injection." Tools like Semgrep let you write custom rules in YAML for your specific codebase.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>Findings are reported with file + line number</strong>
+        <p>Output includes the exact file, line, vulnerable code snippet, severity, and remediation guidance. Integrates directly into GitHub PRs so developers see the issue inline before merging.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">Vulnerable Python — SAST would flag this</div>
+    <pre><span class="cm"># SAST finding: SQL Injection — user input flows into query unsanitized</span>
+<span class="kw">def</span> <span class="fn">get_experiment</span>(experiment_id):
+    <span class="cm"># SOURCE: user-controlled input from HTTP request</span>
+    query = <span class="str">"SELECT * FROM experiments WHERE id = "</span> + experiment_id
+    <span class="cm">#                                          ↑ SINK: dangerous — direct string concat</span>
+    <span class="kw">return</span> db.execute(query)   <span class="err"># ← SAST flags this line: CWE-89</span>
+
+<span class="cm"># ─────────────────────────────────────────</span>
+<span class="cm"># FIXED — parameterized query</span>
+<span class="kw">def</span> <span class="fn">get_experiment</span>(experiment_id):
+    query = <span class="str">"SELECT * FROM experiments WHERE id = ?"</span>
+    <span class="kw">return</span> db.execute(query, [experiment_id])  <span class="ok"># ✓ safe</span></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">Semgrep custom rule — detect SQL injection pattern</div>
+    <pre><span class="kw">rules:</span>
+  - <span class="kw">id:</span> <span class="str">sql-injection-string-concat</span>
+    <span class="kw">patterns:</span>
+      - <span class="kw">pattern:</span> <span class="str">db.execute(... + $USER_INPUT)</span>
+    <span class="kw">message:</span> <span class="str">"SQL injection: user input concatenated into query"</span>
+    <span class="kw">severity:</span> <span class="warn">ERROR</span>
+    <span class="kw">languages:</span> [python]
+    <span class="kw">metadata:</span>
+      <span class="kw">cwe:</span> <span class="str">CWE-89</span>
+      <span class="kw">owasp:</span> <span class="str">A03:2021</span></pre>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>What SAST finds well</h4>
+      <ul>
+        <li>SQL / command / LDAP injection</li>
+        <li>Hardcoded secrets and API keys</li>
+        <li>Weak cryptography (MD5, DES, ECB mode)</li>
+        <li>Missing input validation</li>
+        <li>Insecure deserialization</li>
+        <li>Path traversal vulnerabilities</li>
+        <li>XSS in server-side templates</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>SAST limitations</h4>
+      <ul>
+        <li>High false positive rate — needs tuning</li>
+        <li>Cannot find runtime / logic flaws</li>
+        <li>Cannot find auth bypass (needs running app)</li>
+        <li>Cannot find IDOR (business logic)</li>
+        <li>Language-specific — different tool per stack</li>
+        <li>Misses vulnerabilities in 3rd party libs</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tool-row">
+    <div class="tool-pill"><span class="dot"></span>Semgrep (open source, custom rules)</div>
+    <div class="tool-pill"><span class="dot"></span>CodeQL (GitHub — deep analysis)</div>
+    <div class="tool-pill"><span class="dot"></span>Checkmarx (enterprise)</div>
+    <div class="tool-pill"><span class="dot"></span>Snyk Code</div>
+    <div class="tool-pill"><span class="dot"></span>Bandit (Python-specific)</div>
+    <div class="tool-pill"><span class="dot"></span>SonarQube</div>
+  </div>
+</div>
+
+<!-- ══════════════ SCA ══════════════ -->
+<div class="panel sca-color" id="panel-sca">
+  <div class="def-hero">
+    <div class="def-label">SCA — Software Composition Analysis</div>
+    <p><strong>Analyzes your open source dependencies for known vulnerabilities.</strong> Modern apps are 80%+ open source code. SCA inventories every library you import, checks it against CVE databases (NVD, OSV, GitHub Advisory), and alerts when a dependency has a known exploit. <strong>Does not read your code — reads your dependency files.</strong></p>
+  </div>
+
+  <div class="sec-title" style="color:#22d3ee">How SCA works — stage by stage</div>
+  <p class="sec-sub">SCA builds a Software Bill of Materials (SBOM) then cross-references every component against vulnerability databases.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Dependency manifest is parsed</strong>
+        <p>SCA reads your <code>requirements.txt</code>, <code>package.json</code>, <code>pom.xml</code>, or <code>go.sum</code>. It builds a full dependency tree — including transitive dependencies (libraries that your libraries depend on). This is where most vulns hide.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>SBOM is generated</strong>
+        <p>An SBOM (Software Bill of Materials) is created — a complete inventory of every component, version, and license. This is what you mentioned on your resume at Aptiv. SBOM is now a compliance requirement (US Executive Order 14028).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Each component is checked against CVE databases</strong>
+        <p>Every library + version is cross-referenced against NVD (National Vulnerability Database), GitHub Advisory Database, and OSV. If <code>requests==2.19.0</code> has a known CVE — you get alerted with CVSS score and exploit details.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>License compliance is checked</strong>
+        <p>SCA also flags license violations — if you're using a GPL library in a commercial product, that's a legal risk. Often overlooked but important in enterprise security programs.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <strong>Fix version is recommended</strong>
+        <p>The tool tells you exactly which version to upgrade to. Integrated into CI — a PR adding a vulnerable library gets blocked before it merges.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">Example — vulnerable requirements.txt (Python)</div>
+    <pre><span class="cm"># requirements.txt</span>
+flask==1.0.2          <span class="err"># ← CVE-2018-1000656: DoS via malformed JSON (CVSS 7.5)</span>
+requests==2.19.0      <span class="err"># ← CVE-2018-18074: credentials leak via redirect (CVSS 9.8)</span>
+pyyaml==3.12          <span class="err"># ← CVE-2017-18342: arbitrary code execution (CVSS 9.8)</span>
+django==2.0.0         <span class="err"># ← multiple CVEs — SQL injection, open redirect</span>
+cryptography==2.1.4   <span class="err"># ← CVE-2018-10903: weak key generation</span>
+
+<span class="cm"># After SCA scan — fixed versions:</span>
+flask==2.3.3          <span class="ok"># ✓ patched</span>
+requests==2.31.0      <span class="ok"># ✓ patched</span>
+pyyaml==6.0.1         <span class="ok"># ✓ patched</span></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">SCA output — Snyk finding example</div>
+    <pre><span class="warn">✗ High severity vulnerability found in pyyaml@3.12</span>
+  <span class="kw">Description:</span> Arbitrary Code Execution
+  <span class="kw">Info:</span>        https://snyk.io/vuln/SNYK-PYTHON-PYYAML-42159
+  <span class="kw">Introduced:</span> pyyaml@3.12
+  <span class="kw">Fixed in:</span>   <span class="ok">pyyaml@5.1</span>
+  <span class="kw">CVE:</span>        CVE-2017-18342
+  <span class="kw">CVSS:</span>       <span class="err">9.8 Critical</span>
+  <span class="kw">Exploit:</span>    yaml.load(user_input) → remote code execution</pre>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>What SCA finds</h4>
+      <ul>
+        <li>Known CVEs in direct dependencies</li>
+        <li>Known CVEs in transitive dependencies</li>
+        <li>License violations (GPL, AGPL conflicts)</li>
+        <li>Outdated / unmaintained packages</li>
+        <li>Malicious packages (typosquatting)</li>
+        <li>Supply chain attacks (Log4Shell style)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>SCA limitations</h4>
+      <ul>
+        <li>Only finds known CVEs — not zero days</li>
+        <li>Cannot find custom code vulnerabilities</li>
+        <li>Noisy — many low-severity findings</li>
+        <li>False positives if vuln code path not used</li>
+        <li>Reachability analysis needed to reduce noise</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tool-row">
+    <div class="tool-pill"><span class="dot"></span>Snyk Open Source</div>
+    <div class="tool-pill"><span class="dot"></span>Dependabot (GitHub)</div>
+    <div class="tool-pill"><span class="dot"></span>OWASP Dependency-Check</div>
+    <div class="tool-pill"><span class="dot"></span>Syft (SBOM generation)</div>
+    <div class="tool-pill"><span class="dot"></span>Grype (vuln scanner)</div>
+    <div class="tool-pill"><span class="dot"></span>Black Duck</div>
+  </div>
+</div>
+
+<!-- ══════════════ DAST ══════════════ -->
+<div class="panel dast-color" id="panel-dast">
+  <div class="def-hero">
+    <div class="def-label">DAST — Dynamic Application Security Testing</div>
+    <p><strong>Tests the running application from the outside — exactly like an attacker would.</strong> Sends real HTTP requests with malicious payloads and observes the response. Finds runtime vulnerabilities that SAST and SCA cannot see. <strong>App must be running — DAST tests behavior, not code.</strong></p>
+  </div>
+
+  <div class="sec-title" style="color:#fb923c">How DAST works — stage by stage</div>
+  <p class="sec-sub">DAST acts as an automated attacker — crawling, probing, and attacking a live app to find exploitable vulnerabilities.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Target is configured and authenticated</strong>
+        <p>You point DAST at a staging URL. You provide auth credentials or a session token so it can test authenticated endpoints. Without auth, DAST only tests public-facing pages — missing 80% of the attack surface.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Spider / crawl discovers all endpoints</strong>
+        <p>DAST crawls the app — following links, submitting forms, calling API endpoints — to build a map of everything it can test. For SPAs (React/Angular), you may need to provide an OpenAPI spec or record a browser session.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Active scanning — attack payloads are injected</strong>
+        <p>For every parameter on every endpoint, DAST injects attack payloads — SQL injection strings, XSS vectors, path traversal sequences, SSRF URLs. It fires thousands of requests automatically.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>Responses are analyzed for vulnerability indicators</strong>
+        <p>DAST looks for signs of exploitation in responses: SQL error messages, reflected script execution, unexpected data in responses, different response times (for blind injection). If <code>'</code> causes a 500 error with a DB stack trace — SQL injection confirmed.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <strong>Findings reported with request / response evidence</strong>
+        <p>Each finding includes the exact HTTP request sent, the response that triggered the alert, and the specific payload used. This makes it easy for developers to reproduce and fix the issue.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">What DAST actually sends — XSS probe example</div>
+    <pre><span class="cm"># DAST sends this request to every input parameter:</span>
+<span class="kw">GET</span> /api/search?q=<span class="err">&lt;script&gt;alert(document.cookie)&lt;/script&gt;</span> HTTP/1.1
+Host: app.benchling.com
+Cookie: session=eyJhbGciOiJIUzI1NiJ9...
+
+<span class="cm"># Vulnerable response — script tag reflected back:</span>
+HTTP/1.1 200 OK
+Content-Type: text/html
+<span class="err">&lt;h2&gt;Results for: &lt;script&gt;alert(document.cookie)&lt;/script&gt;&lt;/h2&gt;</span>
+<span class="cm"># ↑ DAST flags: Reflected XSS — input returned in HTML without encoding</span>
+
+<span class="cm"># Safe response — input properly encoded:</span>
+HTTP/1.1 200 OK
+<span class="ok">&lt;h2&gt;Results for: &amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;&lt;/h2&gt;</span>
+<span class="cm"># ↑ HTML entities — XSS neutralized</span></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-label">DAST in CI pipeline — OWASP ZAP GitHub Action</div>
+    <pre><span class="kw">name:</span> <span class="str">DAST Security Scan</span>
+<span class="kw">on:</span> [push]
+<span class="kw">jobs:</span>
+  <span class="kw">zap-scan:</span>
+    <span class="kw">runs-on:</span> ubuntu-latest
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="str">Deploy staging app</span>
+        <span class="kw">run:</span> <span class="str">docker-compose up -d</span>
+
+      - <span class="kw">name:</span> <span class="str">Run OWASP ZAP DAST scan</span>
+        <span class="kw">uses:</span> zaproxy/action-full-scan@v0.9.0
+        <span class="kw">with:</span>
+          <span class="kw">target:</span> <span class="str">'http://localhost:8080'</span>
+          <span class="kw">rules_file_name:</span> <span class="str">'.zap/rules.tsv'</span>
+          <span class="kw">cmd_options:</span> <span class="str">'-a'</span>   <span class="cm"># authenticated scan</span>
+
+      - <span class="kw">name:</span> <span class="str">Fail pipeline on High findings</span>
+        <span class="kw">run:</span> <span class="str">|
+          if grep -q "HIGH" zap-report.json; then
+            echo "High severity findings — blocking merge"
+            exit 1
+          fi</span></pre>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>What DAST finds (SAST cannot)</h4>
+      <ul>
+        <li>Runtime injection (SQLi, XSS, CMDi)</li>
+        <li>Authentication / session management flaws</li>
+        <li>CORS misconfigurations</li>
+        <li>Security headers missing (CSP, HSTS)</li>
+        <li>SSRF — server-side request forgery</li>
+        <li>API rate limiting failures</li>
+        <li>Business logic flaws (partially)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>DAST limitations</h4>
+      <ul>
+        <li>Needs running app — can't run on code alone</li>
+        <li>Slow — full scan can take hours</li>
+        <li>Misses IDOR (can't know valid IDs to test)</li>
+        <li>Misses logic flaws requiring human judgment</li>
+        <li>Can break staging environments if not careful</li>
+        <li>Auth setup complex for modern SPAs</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tool-row">
+    <div class="tool-pill"><span class="dot"></span>OWASP ZAP (open source)</div>
+    <div class="tool-pill"><span class="dot"></span>Burp Suite Pro (manual + automated)</div>
+    <div class="tool-pill"><span class="dot"></span>Nikto</div>
+    <div class="tool-pill"><span class="dot"></span>Nuclei</div>
+    <div class="tool-pill"><span class="dot"></span>StackHawk</div>
+    <div class="tool-pill"><span class="dot"></span>HCL AppScan</div>
+  </div>
+</div>
+
+<!-- ══════════════ PIPELINE ══════════════ -->
+<div class="panel pipe-color" id="panel-pipe">
+  <div class="def-hero">
+    <div class="def-label">All three tools together — the DevSecOps pipeline</div>
+    <p><strong>SAST, SCA, and DAST each catch different things.</strong> None of them alone is enough. Used together in a CI/CD pipeline, they create overlapping layers of protection — catching issues at code, dependency, and runtime level before anything reaches production.</p>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe-stage" style="border-color:#4f46e5">
+      <div class="ps-icon">✍️</div>
+      <div class="ps-name">Developer writes code</div>
+      <div class="ps-tool">IDE plugins</div>
+      <div class="ps-badge" style="background:#1a1a2e;color:#818cf8">Pre-commit hooks</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" style="border-color:#4f46e5">
+      <div class="ps-icon">🔍</div>
+      <div class="ps-name">SAST scan</div>
+      <div class="ps-tool">Semgrep / CodeQL</div>
+      <div class="ps-badge" style="background:#1a1a2e;color:#818cf8">On PR / commit</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" style="border-color:#0891b2">
+      <div class="ps-icon">📦</div>
+      <div class="ps-name">SCA scan</div>
+      <div class="ps-tool">Snyk / Dependabot</div>
+      <div class="ps-badge" style="background:#0c1f2a;color:#22d3ee">On dependency change</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" style="border-color:#b45309">
+      <div class="ps-icon">🏗️</div>
+      <div class="ps-name">Build & deploy to staging</div>
+      <div class="ps-tool">Docker / K8s</div>
+      <div class="ps-badge" style="background:#1f1510;color:#fb923c">App now running</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" style="border-color:#b45309">
+      <div class="ps-icon">🌐</div>
+      <div class="ps-name">DAST scan</div>
+      <div class="ps-tool">OWASP ZAP / Burp</div>
+      <div class="ps-badge" style="background:#1f1510;color:#fb923c">Against staging</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" style="border-color:#065f46">
+      <div class="ps-icon">🚀</div>
+      <div class="ps-name">Production deploy</div>
+      <div class="ps-tool">Only if all gates pass</div>
+      <div class="ps-badge" style="background:#0a1f18;color:#34d399">Security gate</div>
+    </div>
+  </div>
+
+  <div class="sec-title" style="color:#34d399; margin-bottom:12px">Side-by-side comparison</div>
+  <table class="compare-table">
+    <tr>
+      <th>Property</th>
+      <th class="sast-c">SAST</th>
+      <th class="sca-c">SCA</th>
+      <th class="dast-c">DAST</th>
+    </tr>
+    <tr>
+      <td>What it analyzes</td>
+      <td>Your source code</td>
+      <td>Your dependencies</td>
+      <td>Running application</td>
+    </tr>
+    <tr>
+      <td>App needs to run?</td>
+      <td><span class="tag n">No</span></td>
+      <td><span class="tag n">No</span></td>
+      <td><span class="tag y">Yes</span></td>
+    </tr>
+    <tr>
+      <td>When in pipeline</td>
+      <td>On commit / PR</td>
+      <td>On dependency change</td>
+      <td>After staging deploy</td>
+    </tr>
+    <tr>
+      <td>Finds injection (SQLi)</td>
+      <td><span class="tag y">Yes</span></td>
+      <td><span class="tag n">No</span></td>
+      <td><span class="tag y">Yes</span></td>
+    </tr>
+    <tr>
+      <td>Finds known CVEs</td>
+      <td><span class="tag n">No</span></td>
+      <td><span class="tag y">Yes</span></td>
+      <td><span class="tag p">Partial</span></td>
+    </tr>
+    <tr>
+      <td>Finds auth flaws</td>
+      <td><span class="tag p">Partial</span></td>
+      <td><span class="tag n">No</span></td>
+      <td><span class="tag y">Yes</span></td>
+    </tr>
+    <tr>
+      <td>Finds IDOR</td>
+      <td><span class="tag n">No</span></td>
+      <td><span class="tag n">No</span></td>
+      <td><span class="tag n">No — needs manual pentest</span></td>
+    </tr>
+    <tr>
+      <td>False positive rate</td>
+      <td>High — needs tuning</td>
+      <td>Medium</td>
+      <td>Low — runtime confirmed</td>
+    </tr>
+    <tr>
+      <td>Speed</td>
+      <td>Fast (seconds–minutes)</td>
+      <td>Very fast (seconds)</td>
+      <td>Slow (minutes–hours)</td>
+    </tr>
+    <tr>
+      <td>Key tools</td>
+      <td>Semgrep, CodeQL, Bandit</td>
+      <td>Snyk, Dependabot, Grype</td>
+      <td>ZAP, Burp, Nuclei</td>
+    </tr>
+  </table>
+
+  <div class="card" style="margin-bottom:16px; --accent:#34d399">
+    <h4>The key insight — what each tool misses</h4>
+    <ul>
+      <li>SAST + SCA together still cannot find IDOR, auth bypass, or logic flaws</li>
+      <li>DAST alone misses hardcoded secrets and vulnerable dependencies</li>
+      <li>All three together still miss business logic flaws — that needs manual pentesting</li>
+      <li>The full picture: SAST + SCA in CI, DAST on staging, manual pentest before major releases</li>
+    </ul>
+  </div>
+  </div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelector('.tab-btn.' + (name === 'pipe' ? 'pipe' : name)).classList.add('active');
+}
+</script>
+</body>
+</html>
