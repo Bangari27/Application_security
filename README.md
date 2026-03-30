@@ -18,8 +18,7 @@ https://bangari27.github.io/Application_security/
 3.  **Web Pentesting Report** (`web_pentest.html`)  
     Detailed documentation of web application penetration testing findings.
 
-## 🛠 How to Use
-1.  **Locally**: Clone this repository and open `index.html` in any web browser.
-2.  **On GitHub**: Navigate to the [Settings > Pages] section of this repo to enable GitHub Pages and host these files live.
+
+
 
 ---
