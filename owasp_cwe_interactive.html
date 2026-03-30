@@ -156,7 +156,7 @@ const vulns = [
 experiment = Experiment.query.<span class="fn">filter_by</span>(id=exp_id).first()`,
     burpSteps: `<span class="cm"># Step 1: Intercept the request in Burp Proxy</span>
 GET /api/experiment?id=1 HTTP/1.1
-Host: benchling.com
+Host: .com
 
 <span class="cm"># Step 2: Send to Repeater (Ctrl+R), modify id:</span>
 GET /api/experiment?id=<span class="er">1' OR '1'='1</span> HTTP/1.1
@@ -633,7 +633,7 @@ SECRET_KEY = os.<span class="fn">environ</span>[<span class="str">'SECRET_KEY'</
 cipher = AES.<span class="fn">new</span>(key, <span class="ok">AES.MODE_GCM</span>)  <span class="ok"># ✓ authenticated encryption</span>`,
     burpSteps: `<span class="cm"># Test 1: Check if app redirects HTTP to HTTPS</span>
 <span class="cm"># In Burp — send request over HTTP:</span>
-GET http://app.benchling.com/login HTTP/1.1
+GET http://app..com/login HTTP/1.1
 <span class="cm"># Should return 301/302 redirect to HTTPS</span>
 <span class="cm"># If 200 over HTTP = credentials transmitted in plaintext!</span>
 
@@ -797,7 +797,7 @@ nikto -h https://target.com -ssl`,
 <span class="cm"># Run: bandit -r ./app</span>
 
 <span class="cm"># Check security headers with Mozilla Observatory:</span>
-<span class="cm"># https://observatory.mozilla.org/analyze/benchling.com</span>
+<span class="cm"># https://observatory.mozilla.org/analyze/.com</span>
 
 <span class="cm"># In CI pipeline — scan for exposed .env files:</span>
 find . -name <span class="str">".env"</span> -not -path <span class="str">"./.git/*"</span>
